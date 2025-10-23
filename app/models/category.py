@@ -13,7 +13,8 @@ class Category(db.Model):
     created_at = db.Column(db.DateTime, default= lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default= lambda: datetime.now(timezone.utc), onupdate= lambda: datetime.now(timezone.utc))
     deleted_at = db.Column(db.DateTime, default= None,  nullable=True)
-    
+    # askzdjsadf
+    # kasjzhds
     def to_dict(self) : 
         
         return {
