@@ -7,7 +7,7 @@ from .routes import register_routes
 from dotenv import load_dotenv
 import logging
 from .configs.config import Config
-from .extension import db, mail
+from .extension import db, mail, migrate
 from app.utils.middlewares import global_verify_token
 from app.utils.scheduler import OrderNotificationScheduler 
 
@@ -22,7 +22,7 @@ def create_app() :
     app.config.from_object(Config)
     try : 
         db.init_app(app)
-        # mail.init_app(app)
+        migrate.init_app(app,db)
         with app.app_context():
             db.engine.connect()
         logger.info("Database connection successful")
