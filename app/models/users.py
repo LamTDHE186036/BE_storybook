@@ -7,6 +7,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     role = db.Column(db.String(50), nullable=False)
     user_name = db.Column(db.String(255), unique=True, nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
@@ -16,7 +17,8 @@ class User(db.Model):
         return {
             'id': self.id,
             'role': self.role,
-            'user_name': self.user_name,    
+            'user_name': self.user_name, 
+            'email': self.email,   
             "password_hash": self.password_hash,          
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

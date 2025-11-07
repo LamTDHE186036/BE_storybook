@@ -3,7 +3,9 @@ from app.models.discount import Discount
 from app.models.order import Order
 from app.models.order_items import OrderItems
 from app.models.product_variants import ProductVariants
+from app.models.customer import Customer
 from datetime import datetime, timezone
+from app.services.otp_mail_services import EmailService
 import json
 
 
@@ -44,16 +46,38 @@ class OrderService:
             return response_data, None
         except Exception as e :
             return None, str(e)
+        
+        
     @staticmethod
     def create_order(data: dict):
         try : 
-            required_fields = ['customer_id','shipping_address','discount_code','items','status','payment_status','payment_method']
+            required_fields = ['customer_id','shipping_address','discount_code','items','payment_status','payment_method']
             for field in required_fields :
                 if field not in data :
                     return None, f'Missing required field: {field}'
             if not isinstance(data['items'], list) or len(data['items']) == 0 :
                 return None, 'Order must contain at least one item'
             
+            for item in data['items']:
+                if 'product_variant_id' not in item or 'quantity' not in item:
+                    return None, 'Each item must have product_variant_id and quantity'
+
+                product_variant = db.session.query(ProductVariants).filter(
+                    ProductVariants.id == item['product_variant_id'],
+                    ProductVariants.deleted_at.is_(None)
+                ).first()
+
+                if not product_variant:
+                    return None, f'Product variant with ID {item["product_variant_id"]} not found'
+
+                if product_variant.quantity < item['quantity']:
+                    return None, f'Insufficient stock for product variant ID {item["product_variant_id"]}'
+                
+                
+                item['name'] = getattr(product_variant, 'name', '')
+                item['price'] = getattr(product_variant, 'price', 0)
+                
+                            
             price_before_discount = sum(item.get('price', 0) * item.get('quantity', 1) for item in data['items'])
             
             discount_code = data.get('discount_code') or None
@@ -100,7 +124,7 @@ class OrderService:
                 discount_code = discount_code,
                 price_before_discount = price_before_discount,
                 total_price = total_price,
-                status = data['status'],
+                status = 'pending',
                 payment_status = data['payment_status'],
                 payment_method = data['payment_method']
             )
@@ -117,64 +141,130 @@ class OrderService:
                 )
                 order_items.append(order_item)
                 db.session.add(order_item)
+                
+            customer = db.session.query(Customer).filter(
+                Customer.id == data['customer_id'],
+                Customer.deleted_at.is_(None)
+            ).first()
+            
+            if customer and customer.email:
+                order_dict = order.to_dict()
+                # Gửi email trong background thread
+                EmailService.send_order_confirmation_email(customer.email, order_dict)
+                print(f'Email đang được gửi đến {customer.email}')
+            
             
             db.session.commit()
             return order.to_dict(), None
     
         except Exception as e :
             db.session.rollback()
-            return None, str(e)
+            return None, str(e)    
+    
     
     @staticmethod
     def update_order(data: dict):
-        try : 
-            if 'id' not in data :
+        try:
+            if 'id' not in data:
                 return None, 'id is required'
             
             order = db.session.query(Order).filter(
                 Order.id == data['id'],
-                Order.deleted_at.is_(None) 
+                Order.deleted_at.is_(None)
             ).first()
             
-            if order is None :
+            if order is None:
                 return None, 'Order not found'
             
             old_status = order.status
+            if old_status == 'delivered'or old_status == 'cancelled' :
+                return None, 'Delivered orders cannot be updated'
             
-            updatable_fields = ['shipping_address','status']
-            for field in updatable_fields: 
-                if field in data :
+            updatable_fields = ['status', 'payment_status']
+            for field in updatable_fields:
+                if field in data:
                     setattr(order, field, data[field])
-                    
-            if old_status != 'shipped' and order.status == 'shipped' :
+            
+            if order.status not in ['pending', 'processing'] and old_status in ['pending', 'processing']:
                 order_items = db.session.query(OrderItems).filter(
                     OrderItems.order_id == order.id,
                     OrderItems.deleted_at.is_(None)
                 ).all()
                 
-                for item in order_items :
+                for item in order_items:
                     product_variant = db.session.query(ProductVariants).filter(
                         ProductVariants.id == item.product_variant_id,
                         ProductVariants.deleted_at.is_(None)
                     ).first()
                     
-                    if product_variant :
-                        if product_variant.quantity < item.quantity :
-                            return None, f'Insufficient stock for product variant ID {product_variant.id}'
-                        
-                        product_variant.quantity -= item.quantity
-                        product_variant.quantity_ordered += item.quantity
-                        if product_variant.quantity == 0 :
-                            product_variant.status = 'out_of_stock'
-                        db.session.add(product_variant)
-                
+                    if not product_variant:
+                        return None, f'Product variant ID {item.product_variant_id} not found'
+                    
+                    if product_variant.quantity < item.quantity:
+                        return None, f'Insufficient stock for product variant ID {product_variant.id}'
+                    
+                    product_variant.quantity -= item.quantity
+                    product_variant.quantity_ordered += item.quantity
+                    
+                    if product_variant.quantity == 0:
+                        product_variant.status = 'out_of_stock'
+                    
+                    db.session.add(product_variant)
+            
             db.session.add(order)
             db.session.commit()
+            
+            if order.status == 'delivered': 
+                order.payment_status = 'paid'
+                db.session.commit()
+                
+                customer = db.session.query(Customer).filter(
+                Customer.id == order.customer_id,
+                Customer.deleted_at.is_(None)
+            ).first()
+
+                if customer and customer.email:
+                    order_dict = order.to_dict()
+                    # Gửi email trong background thread
+                    EmailService.send_order_shipped_email(customer.email, order_dict)
+                    print(f'Email xác nhận đã giao hàng đang được gửi đến {customer.email}')
+            
+            
             return order.to_dict(), None
+        
+        except Exception as e:
+            db.session.rollback()
+            return None, str(e)
+
+        
+    @staticmethod
+    def update_order_shipping_address(data: dict):
+        try : 
+            if 'id' not in data or 'shipping_address' not in data :
+                return None, 'id and shipping_address are required'
+            
+            order = db.session.query(Order).filter(
+                Order.id == data['id'],
+                Order.deleted_at.is_(None)
+            ).first()
+            
+            if order is None:
+                return None, 'Order not found'
+            
+            if order.status == 'pending' or order.status == 'processing' :
+        
+                order.shipping_address = data['shipping_address']
+                db.session.commit()
+                return order.to_dict(), None
+            else :
+                return None, 'Only orders with status pending or processing can update shipping address'
+        
         except Exception as e :
             db.session.rollback()
             return None, str(e)
-        
+    
+    
+    
     @staticmethod
     def delete_order(ids: list):
         try : 

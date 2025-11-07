@@ -8,7 +8,7 @@ load_dotenv()
 
 class JWTUtils:
     @staticmethod
-    def encode_access_token(user_id:int,user_name:str, role:str, **kwargs):
+    def encode_access_token(user_id:int,user_name:str, role:str, email:str, **kwargs):
         
         secret_key = os.getenv("SECRET_KEY")
         issued_at = datetime.now(timezone.utc)
@@ -18,6 +18,7 @@ class JWTUtils:
             'user_id' : user_id,
             'sub': user_name,
             "role" : role,
+            "email" : email,
             "iat" : int(issued_at.timestamp()),
             "exp" : int(expiration.timestamp())
             }

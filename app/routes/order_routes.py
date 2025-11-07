@@ -15,17 +15,22 @@ def get_orders():
     
     return OrderController.get_orders(page, page_size, filters)
 
-@order_bp.route('/admin/orders', methods=['POST'])
+@order_bp.route('/orders', methods=['POST'])
 def create_order():
     data = request.get_json()
     return OrderController.create_order(data)
 
-@order_bp.route('/admin/orders', methods=['PATCH'])
+@order_bp.route('admin/orders', methods=['PATCH'])
 def update_order():
     data = request.get_json()
     return OrderController.update_order(data)
 
-@order_bp.route('/admin/orders', methods=['DELETE'])
+@order_bp.route('/orders', methods=['PATCH'])
+def update_order_shipping_address():
+    data = request.get_json()
+    return OrderController.update_order_shipping_address(data)
+
+@order_bp.route('/orders', methods=['DELETE'])
 def delete_order():
     request_data = request.get_json()
     return OrderController.delete_order(request_data)

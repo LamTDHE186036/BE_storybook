@@ -162,9 +162,11 @@ class CategoryService :
                         'name': category.name,
                         'reason': 'Category is associated with products'
                     })
-                else :
-                    deleted_categories.append(category)
-                    category.deleted_at = datetime.now(timezone.utc)
+                    continue
+                
+                
+                deleted_categories.append(category)
+                category.deleted_at = datetime.now(timezone.utc)
                 
             db.session.commit()
             

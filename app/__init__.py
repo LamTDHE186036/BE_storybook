@@ -1,13 +1,16 @@
 # tạo __init__.py là trung tâm khởi tạo app, quản lý cấu hình, extensions, và kết nối tất cả module lại.
-
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail
 import os
 from .routes import register_routes
 from dotenv import load_dotenv
 import logging
 from .configs.config import Config
-from .extension import db
+from .extension import db, mail
+from app.utils.middlewares import global_verify_token
+from app.utils.scheduler import OrderNotificationScheduler 
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,20 +19,19 @@ load_dotenv()
 
 def create_app() : 
     app = Flask(__name__)
-    
     app.config.from_object(Config)
-    
     try : 
         db.init_app(app)
+        # mail.init_app(app)
         with app.app_context():
             db.engine.connect()
         logger.info("Database connection successful")
-        from app.utils.middlewares import verify_token
-        @app.before_request
-        def before_request_handler():
-            return verify_token()
-        register_routes(app)
     except Exception as e:
+        print(e)
         logger.error(f"Database connection failed: {e}")
+        
+    app.before_request(global_verify_token)
+    register_routes(app)
+    OrderNotificationScheduler.init_scheduler(app)
         
     return app 

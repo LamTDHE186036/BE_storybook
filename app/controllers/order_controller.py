@@ -86,6 +86,36 @@ class OrderController:
             )
 
     @staticmethod
+    def update_order_shipping_address(data: dict):
+        try : 
+            if not data :
+                return api_response(
+                    success=False,
+                    message='No input data provided',
+                    status_code=400
+                )
+            data, error = OrderService.update_order_shipping_address(data)
+            if error : 
+                return api_response(
+                    success=False,
+                    message=f'Error updating order shipping address: {error}',
+                    status_code=500
+                )
+            return api_response(
+                success=True,
+                message='Order shipping address updated successfully',   
+                data = data,
+                status_code=200
+            )
+        except Exception as e :
+            return api_response(
+                success=False,
+                message=f'Internal server error: {str(e)}',
+                status_code= 500
+            )
+            
+            
+    @staticmethod
     def delete_order(request_data: dict):
         try : 
             if not request_data or 'ids' not in request_data :     

@@ -15,17 +15,17 @@ def get_cart_items():
     }
     return CartItemsController.get_cart_items(page, page_size, filters)
 
-@cart_itenms_bp.route('/admin/cart_items', methods=['POST'])
+@cart_itenms_bp.route('cart_items', methods=['POST'])
 def create_cart_items():
     request_data = request.get_json()
     return CartItemsController.create_cart_items(request_data)
 
-@cart_itenms_bp.route('/admin/cart_items', methods=['PATCH'])
+@cart_itenms_bp.route('/cart_items', methods=['PATCH'])
 def update_cart_items():
     request_data = request.get_json()
     return CartItemsController.update_cart_items(request_data)
 
-@cart_itenms_bp.route('/admin/cart_items', methods=['DELETE'])
+@cart_itenms_bp.route('/cart_items', methods=['DELETE'])
 def delete_cart_items():
     request_data = request.get_json()
     return CartItemsController.delete_cart_items(request_data)

@@ -24,18 +24,18 @@ def get_detail_cart(cart_id: int):
     return CartController.get_detail_cart(page, page_size, cart_id)
 
 
-@cart_bp.route('/admin/cart', methods=['POST'])
+@cart_bp.route('/cart', methods=['POST'])
 def create_cart():
     request_data = request.get_json()
     return CartController.create_cart(request_data)
 
 
-@cart_bp.route('/admin/cart', methods=['PATCH'])
+@cart_bp.route('/cart', methods=['PATCH'])
 def update_cart():
     request_data = request.get_json()
     return CartController.update_cart(request_data)
 
-@cart_bp.route('/admin/cart', methods=['DELETE'])
+@cart_bp.route('/cart', methods=['DELETE'])
 def delete_cart():
     request_data = request.get_json()
     return CartController.delete_cart(request_data)
